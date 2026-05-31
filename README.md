@@ -5,22 +5,18 @@ Monorepo for the agent (Python) + UI (WinUI / Windows App SDK via .NET) system.
 ## Layout
 
 - `src/agent/` — Python agent (placeholder only in this PR)
-- `src/ui/` — WinUI / C# projects (lite WinRT smoke test present)
+- `src/ui/` — WinUI / C# projects (lite WinRT smoke test + PR 2 WinUI 3 shell skeleton present)
 - `protos/` — Shared service contracts (gRPC .proto definitions)
 - `docs/` — Setup, architecture, and spike results
 - `scripts/` — Bootstrap and helper scripts
 - `spike/` — One-off measurement harnesses (IPC spike results recorded)
 
-## Status (PR 1)
+## Status
 
-- Repository bootstrap complete.
-- Detailed prerequisites documentation (`.NET 8 SDK + Windows App SDK workload`) with honest timing/disk warnings.
-- Python 3.12+ pinned (ruff + mypy).
-- GitHub Actions CI skeleton for lint/typecheck.
-- **Mandatory IPC spike completed**: gRPC-style (protobuf + protoc) vs named-pipe + JSON. Real measurements on this Windows machine (no .NET SDK present on 2026-05-28) recorded in `docs/ipc-spike.md`.
-- Lite WinRT console smoke test (builds with .NET SDK + Windows App SDK workload only, no full VS required).
+- **PR 1 complete** (merged to main): Repository bootstrap, detailed prerequisites (`.NET 8 SDK + Windows App SDK workload` with timing/disk warnings), Python 3.12+ pinned, CI skeleton, mandatory IPC spike (named-pipe+JSON recommended over gRPC-style), lite WinRT smoke test.
+- **PR 2 in progress**: WinUI 3 shell skeleton + Fluent styling + basic transport client stub (on branch `execute-plan/pr-2-winui3-shell-skeleton`).
 
-**No functional agent or UI code yet.** This PR unblocks subsequent work.
+See `docs/ipc-spike.md` for transport recommendation (named pipes + JSON preferred for this desktop agent; gRPC fallback documented).
 
 ## Getting Started
 
@@ -44,7 +40,7 @@ mypy src
 
 ## Next
 
-PR 2+ will add real agent service surface using the recommended transport from the spike.
+PR 2 delivers the native WinUI 3 desktop shell (chat + suggestions + dashboard) with a stubbed transport client. PR 3 will bring the Python agent core + real transport server + tool framework (applying the IPC spike recommendation).
 
 ## License
 
