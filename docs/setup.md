@@ -42,29 +42,29 @@ py -3.12 -m venv .venv
 - **Disk impact**: 15–30+ GB final footprint for the SDK + workloads + caches. Temporary files during extraction/install can briefly consume 50+ GB.
 - On the reference machine (2026-05-28) this was a **full day spike** risk item.
 
-### Two paths: Minimal (for the smoke test) vs Recommended (full development)
+### Primary Path: Minimal .NET SDK + Windows App SDK Workload (sufficient for the smoke test)
 
-**Minimal path (sufficient to build and run the lite WinRT smoke test)**
+The lite WinRT smoke test (`src/ui/smoke/WinRTConsole/`) is **explicitly designed** to build and run with **only** the standalone .NET 8 SDK + the Windows App SDK workload (plus the matching Windows 10/11 SDK component). **No full Visual Studio Community installation and no .sln are required.**
 
-The smoke test in `src/ui/smoke/WinRTConsole/` is deliberately designed so that **only** the standalone .NET 8 SDK + the Windows App SDK workload (plus the matching Windows SDK component) are required. No full Visual Studio Community installation or .sln is needed.
+This is the recommended starting point for anyone following this repo.
 
-1. Install the .NET 8 SDK only:
+1. Install the .NET 8 SDK only (no VS):
 
    ```powershell
    winget install Microsoft.DotNet.SDK.8 --accept-package-agreements --accept-source-agreements
    ```
 
-2. Install the Windows App SDK workload bits (this can be done via the VS Installer even in a minimal scenario, or via the specific components that the workload pulls in). In practice on a completely clean machine the easiest reliable route is still to let the VS Installer pull the required pieces:
+2. Add the Windows App SDK workload components (can be done via the VS Installer even in a minimal scenario):
 
    ```powershell
    winget install Microsoft.VisualStudio.2022.Community --accept-package-agreements --accept-source-agreements
    ```
 
-   Then in the Visual Studio Installer add (at minimum):
+   Then use the Visual Studio Installer (or command line) to add **at minimum**:
    - Windows App SDK component
-   - A Windows 10/11 SDK matching the TFM used by the smoke test (see pitfalls below)
+   - A Windows 10/11 SDK matching the TFM in the smoke test (e.g. 10.0.19041 or 10.0.22621)
 
-   After this the following command succeeds **without** ever opening Visual Studio:
+   After this, the smoke test builds **without ever opening Visual Studio**:
 
    ```powershell
    cd src\ui\smoke\WinRTConsole
@@ -72,17 +72,17 @@ The smoke test in `src/ui/smoke/WinRTConsole/` is deliberately designed so that 
    .\bin\Release\net8.0-windows10.0.19041.0\win-x64\WinRTConsole.exe
    ```
 
-   Expected output contains "SUCCESS: WinRT projection loaded without full Visual Studio."
+   Expected output contains: `SUCCESS: WinRT projection loaded without full Visual Studio.`
 
-**Recommended path (for comfortable day-to-day WinUI / agent development)**
+**Optional: Full recommended development environment**
 
-For real work you will want the full Visual Studio 2022 Community (or higher) with the standard workloads:
+For day-to-day comfortable WinUI / agent work most engineers will eventually want the full Visual Studio 2022 Community (or higher) with the standard workloads:
 
 - .NET desktop development
 - Windows application development (includes Windows App SDK + MSIX tools)
 - Latest Windows 11 SDK (10.0.22621 or newer)
 
-Use the same `winget install Microsoft.VisualStudio.2022.Community` + modify steps shown in the "Exact steps" section below. This is what most engineers will actually run.
+Use the same `winget install Microsoft.VisualStudio.2022.Community` + modify steps shown in the "Exact steps (full recommended VS 2022 path)" section below. The smoke test will also work after this full install.
 
 ### Exact steps (full recommended VS 2022 path)
 

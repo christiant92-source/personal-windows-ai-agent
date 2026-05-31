@@ -30,7 +30,6 @@ import textwrap
 import time
 import urllib.request
 import zipfile
-
 from pathlib import Path
 from typing import Any
 
@@ -473,23 +472,38 @@ def main() -> None:
     except Exception as e:
         log(f"gRPC-style arm FAILED: {e}")
         results["grpc_style_protobuf"] = {"error": str(e)}
-        import traceback
+        # Do NOT print full traceback to stdout (prevents pollution of captured results).
+        # The exception is already logged above.
 
-        traceback.print_exc()
-
-    # Write results
+    # Write results (machine-readable only)
     RESULTS_JSON.write_text(json.dumps(results, indent=2), encoding="utf-8")
     log(f"Results written to {RESULTS_JSON}")
 
-    # Pretty summary for capture in docs
-    print("\n" + "=" * 70)
-    print("IPC SPIKE SUMMARY (copy into docs/ipc-spike.md)")
-    print("=" * 70)
-    print(json.dumps(results, indent=2))
-    print("=" * 70)
+    # Human summary goes ONLY to stderr (prevents pollution of captured stdout / committed results files)
+    # This directly addresses review Issues 1 + New A.
+    import sys
 
-    # Cleanup heavy artifacts
-    for p in [SPIKE_DIR / ".venv-spike", SPIKE_DIR / "protoc.zip", SPIKE_DIR / "protoc.exe"]:
+    summary = (
+        "\n"
+        + "=" * 70
+        + "\nIPC SPIKE SUMMARY (copy into docs/ipc-spike.md)\n"
+        + "=" * 70
+        + "\n"
+        + json.dumps(results, indent=2)
+        + "\n"
+        + "=" * 70
+        + "\n"
+    )
+    print(summary, file=sys.stderr)
+
+    # Aggressive unconditional cleanup of all transient spike artifacts (addresses Issue 5)
+    for p in [
+        SPIKE_DIR / ".venv-spike",
+        SPIKE_DIR / "protoc.zip",
+        SPIKE_DIR / "protoc.exe",
+        TMP_DIR,
+        RESULTS_JSON,
+    ]:
         if p.is_dir():
             shutil.rmtree(p, ignore_errors=True)
         else:
