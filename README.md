@@ -14,7 +14,7 @@ Monorepo for the agent (Python) + UI (WinUI / Windows App SDK via .NET) system.
 ## Status
 
 - **PR 1 complete** (merged to main): Repository bootstrap, detailed prerequisites (`.NET 8 SDK + Windows App SDK workload` with timing/disk warnings), Python 3.12+ pinned, CI skeleton, mandatory IPC spike (named-pipe+JSON recommended over gRPC-style), lite WinRT smoke test.
-- **PR 2 in progress**: WinUI 3 shell skeleton + Fluent styling + basic transport client stub (on branch `execute-plan/pr-2-winui3-shell-skeleton`).
+- **PR 2 in progress** (branch `execute-plan/pr-2-winui3-shell-skeleton`): WinUI 3 shell skeleton with Fluent command-bar navigation (Chat / Suggestions / Dashboard / Settings panes), named-pipe+JSON transport client stub (per IPC spike rec), MSIX packaging config. Committed skeleton; full build + run requires .NET 8 SDK + Windows App SDK workload (see docs/setup.md). No backend yet.
 
 See `docs/ipc-spike.md` for transport recommendation (named pipes + JSON preferred for this desktop agent; gRPC fallback documented).
 
