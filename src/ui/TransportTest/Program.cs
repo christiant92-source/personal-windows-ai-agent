@@ -41,8 +41,7 @@ internal static class Program
         }
 
         Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadKey();
+        Console.WriteLine("Transport validation complete (non-interactive mode).");
     }
 
     /// <summary>
