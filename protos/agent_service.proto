@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package agent.v1;
+
+// Core service surface used for the IPC spike (PR 1).
+// This proto is the contract that will be used by both gRPC and named-pipe
+// implementations in later PRs.
+service AgentService {
+  // Simple ping for latency measurement.
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {
+  string nonce = 1;
+}
+
+message PingResponse {
+  string nonce = 1;
+  int64 server_time_us = 2;
+}
