@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <LangVersion>latest</LangVersion>
+    <!-- 
+      Minimal transport validation harness for PR 2.
+      Exercises the exact named-pipe + JSON client logic from the WinUI shell
+      without requiring the full Windows App SDK XAML tooling.
+      This can be built and run right now to validate the IPC stub.
+    -->
+  </PropertyGroup>
+</Project>

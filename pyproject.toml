@@ -12,6 +12,12 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
 ]
+# Windows agent runtime (named pipes server). Install with:
+#   pip install -e ".[agent]"
+# pywin32 provides the Win32 named pipe APIs matching the C# client framing.
+agent = [
+    "pywin32; sys_platform == 'win32'",
+]
 
 [tool.ruff]
 line-length = 100
@@ -46,3 +52,7 @@ exclude = [
     "spike/ipc/*.zip",
     "spike/ipc/spike-results*.json",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agent*"]
