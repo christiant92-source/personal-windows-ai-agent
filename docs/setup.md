@@ -2,6 +2,8 @@
 
 This document captures the **exact** steps required on a fresh Windows 11 machine (as of 2026-05-28) to reach a working state for this monorepo.
 
+> **PR 2 practical note**: The pure WinUI 3 + Windows App SDK VS workload path documented below proved difficult to complete on the reference machine (vswhere consistently reported the component missing after winget + multiple `vs_installer.exe modify --passive` / GUI attempts on both VS 2022 and VS 2026 Community). Per user request ("scan what software id available and adapt"), PR 2 delivered the shell skeleton using the *available* `maui-windows` workload (already installed) + pre-installed WindowsAppRuntime MSIX packages. The shell builds/runs today with `dotnet run -f net10.0-windows10.0.19041.0` (see README). The original workload steps remain here for anyone wanting a pure WinUI3 implementation later or on a machine where the component registers successfully. MSIX packaging manifest is still present.
+
 **Critical context from the target machine on 2026-05-28**:
 - No .NET SDK installed ("No SDKs were found").
 - Only Python 3.14.3 present via the `py` launcher.

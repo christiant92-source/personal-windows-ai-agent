@@ -1,20 +1,17 @@
-using Microsoft.UI.Xaml;
-using System;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WinUI3App;
 
 public partial class App : Application
 {
-    public App()
-    {
-        this.InitializeComponent();
-    }
+	public App()
+	{
+		InitializeComponent();
+	}
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
-    {
-        m_window = new MainWindow();
-        m_window.Activate();
-    }
-
-    private Window? m_window;
+	protected override Window CreateWindow(IActivationState? activationState)
+	{
+		return new Window(new AppShell());
+	}
 }
+
