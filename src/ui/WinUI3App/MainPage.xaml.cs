@@ -52,8 +52,8 @@ public partial class MainPage : ContentPage
         TransportStatus.Text = "Connecting via named pipe (stub per ipc-spike.md recommendation)...";
         bool ok = await TryNamedPipePingAsync();
         TransportStatus.Text = ok 
-            ? "Connected (stub). Server not present yet (PR 3). Round-trip simulated."
-            : "Connection refused / no listener (expected - Python agent lands in PR 3). Named pipe transport stub is wired.";
+            ? "✓ Connected! Server responded (PR 3 Python agent). Nonce echoed."
+            : "Connection refused / no listener (expected until Python agent server is running). Named pipe transport stub is wired per ipc-spike.md.";
     }
 
     /// <summary>
