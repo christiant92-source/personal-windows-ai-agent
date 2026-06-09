@@ -18,9 +18,10 @@ Run (after `pip install -e ".[agent]"` on Windows; requires pywin32):
     python -m agent.server
     # (or PYTHONPATH=src python -m src.agent.server before editable install)
 
-This is the core of the PR 3 agent: the server now handles real chat
-requests from the shell, routes them (local vs cloud stub), and
-returns responses over the named pipe.
+This is the core of the PR 3 / PR4 agent: the server handles real chat
+requests from the shell, routes them via classify_route (local vs cloud),
+and for local uses a real Ollama call (http://localhost:11434) with
+graceful fallback. Responses include the route for visibility in the UI.
 """
 
 from __future__ import annotations
