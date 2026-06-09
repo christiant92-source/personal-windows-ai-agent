@@ -82,16 +82,15 @@ def _send_frame(handle: int, payload: bytes) -> None:
 
 
 def _local_chat_response(text: str, route: str) -> str:
-    """First local backend path stub for PR4.
-    For 'local' route: simple helpful echo.
-    For 'cloud' route: indicate it would be sent to cloud.
-    This can later call Ollama / local LLM or tools.
-    The route is always returned so the shell can display it visibly.
+    """First local backend path for PR4 (small focused start).
+    Currently a simple echo stub that includes the route decision for visibility.
+    TODO(PR4+): Replace/extend this with real local model (e.g. Ollama at localhost:11434),
+    tool calling, or more sophisticated local logic. Always log the route decision.
     """
     if route == "local":
-        return f"[local] Thanks — I received your message: {text}"
+        return f"[local] Thanks — I received: \"{text}\" (handled by local backend stub)"
     else:
-        return f"[would-route-to-cloud] Thanks — I received your message: {text}"
+        return f"[would-route-to-cloud] Thanks — I received: \"{text}\" (would be routed to cloud)"
 
 
 def handle_client(handle: int) -> None:
