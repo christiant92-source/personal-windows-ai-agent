@@ -106,8 +106,13 @@ def _call_ollama(prompt: str, model: str = "llama3") -> str:
             result = json.loads(resp.read().decode("utf-8"))
             return result.get("response", f"[local-ollama] No response for: {prompt}").strip()
     except Exception as e:
-        # Graceful fallback if Ollama not available
-        return f"[local-ollama-unavailable: {str(e)[:80]}] Thanks — I received: \"{prompt}\""
+        # Graceful fallback if Ollama not available (e.g. not running on :11434)
+        err = str(e)
+        if "10061" in err or "connection" in err.lower() or "refused" in err.lower():
+            err = "Ollama not running (start the Ollama app or `ollama serve`)"
+        else:
+            err = err[:60]
+        return f"[local-ollama-unavailable: {err}] Thanks — I received: \"{prompt}\""
 
 
 def _local_chat_response(text: str, route: str) -> str:
