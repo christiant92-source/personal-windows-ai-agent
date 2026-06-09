@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import struct
 import time
+import urllib.request
 from typing import Any
 
 import pywintypes
@@ -81,16 +82,44 @@ def _send_frame(handle: int, payload: bytes) -> None:
         print(f"[server] DEBUG: write hr={hr} nbytes={nbytes}")
 
 
+def _call_ollama(prompt: str, model: str = "llama3") -> str:
+    """Real local backend via Ollama (http://localhost:11434).
+    Uses /api/generate for a simple non-streaming completion.
+    Falls back gracefully if Ollama is not running or errors.
+    This is the first real local path for PR4.
+    """
+    try:
+        url = "http://localhost:11434/api/generate"
+        payload = {
+            "model": model,
+            "prompt": f"You are a helpful local AI assistant. Respond concisely and helpfully.\nUser: {prompt}\nAssistant:",
+            "stream": False,
+            "options": {"temperature": 0.7, "num_predict": 256}
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            return result.get("response", f"[local-ollama] No response for: {prompt}").strip()
+    except Exception as e:
+        # Graceful fallback if Ollama not available
+        return f"[local-ollama-unavailable: {str(e)[:80]}] Thanks — I received: \"{prompt}\""
+
+
 def _local_chat_response(text: str, route: str) -> str:
-    """First local backend path for PR4 (small focused start).
-    Currently a simple echo stub that includes the route decision for visibility.
-    TODO(PR4+): Replace/extend this with real local model (e.g. Ollama at localhost:11434),
-    tool calling, or more sophisticated local logic. Always log the route decision.
+    """Local backend entry point for PR4.
+    For 'local' route: calls real Ollama.
+    For cloud route: stub.
+    Route is always returned for visibility in the shell.
     """
     if route == "local":
-        return f"[local] Thanks — I received: \"{text}\" (handled by local backend stub)"
+        return _call_ollama(text)
     else:
-        return f"[would-route-to-cloud] Thanks — I received: \"{text}\" (would be routed to cloud)"
+        return f"[would-route-to-cloud] Thanks — I received: \"{text}\""
 
 
 def handle_client(handle: int) -> None:
@@ -150,9 +179,6 @@ def handle_client(handle: int) -> None:
             text = msg.get("text", "")
             route = classify_route(text)
 
-            # Start of the "local backend path" for PR4.
-            # Currently a simple stub; can be extended to call a local model (e.g. Ollama)
-            # or other tools. The route decision is logged and returned for visibility.
             response_text = _local_chat_response(text, route)
 
             resp = {
@@ -163,7 +189,8 @@ def handle_client(handle: int) -> None:
                 "server_ts": int(time.time() * 1000),
             }
             _send_frame(handle, json.dumps(resp).encode("utf-8"))
-            print(f"[server] ChatResponse (route={route}) -> nonce={nonce[:8]}...")
+            backend = "ollama" if route == "local" else "cloud-stub"
+            print(f"[server] ChatResponse (route={route}, backend={backend}) -> nonce={nonce[:8]}...")
 
             # Same wait-for-client-close handshake.
             try:
