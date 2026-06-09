@@ -63,53 +63,68 @@ internal static class Program
 
         try
         {
-            using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-
-            // Short timeout for validation
-            var connectTask = pipe.ConnectAsync(1500);
-            if (await Task.WhenAny(connectTask, Task.Delay(2000)) != connectTask)
-            {
-                Console.WriteLine("Timeout waiting for pipe server.");
-                return false;
-            }
-
-            await connectTask;
+            using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
+            pipe.Connect(2000); // blocking connect for reliability
+            Console.WriteLine("Client: connected to pipe, now sending data...");
 
             var json = JsonSerializer.Serialize(payload);
             var bytes = Encoding.UTF8.GetBytes(json);
 
-            // Length-prefixed framing (matches the PR 2 shell)
-            await pipe.WriteAsync(BitConverter.GetBytes(bytes.Length));
-            await pipe.WriteAsync(bytes);
-            await pipe.FlushAsync();
+            // Send entire frame using sync write for reliable delivery
+            var lengthPrefix = BitConverter.GetBytes(bytes.Length);
+            var message = new byte[lengthPrefix.Length + bytes.Length];
+            Buffer.BlockCopy(lengthPrefix, 0, message, 0, lengthPrefix.Length);
+            Buffer.BlockCopy(bytes, 0, message, lengthPrefix.Length, bytes.Length);
+            pipe.Write(message, 0, message.Length);
+            pipe.Flush();
+            Console.WriteLine("Client: data sent and flushed, now reading response...");
 
-            Console.WriteLine("Data sent successfully over named pipe.");
+            // The Read below will block until the server writes the Pong response
+            // (or the pipe is closed). No pre-read sleep is needed; the server
+            // now keeps its end open long enough after sending.
 
-            // Try to read response (will likely fail or timeout because no server)
-            try
+            // Robust length-prefixed reader: accumulate bytes until we have the
+            // complete frame (4-byte LE length + declared body). NamedPipeClientStream.Read
+            // can return partial data; a single Read(4096) is not guaranteed to fill the buffer.
+            byte[] header = new byte[4];
+            int headerRead = 0;
+            while (headerRead < 4)
             {
-                byte[] lenBuf = new byte[4];
-                using var cts = new CancellationTokenSource(800);
-                int read = await pipe.ReadAsync(lenBuf, 0, 4, cts.Token);
-                if (read == 4)
+                int n = pipe.Read(header, headerRead, 4 - headerRead);
+                if (n == 0)
                 {
-                    int len = BitConverter.ToInt32(lenBuf);
-                    byte[] resp = new byte[Math.Min(len, 4096)];
-                    await pipe.ReadAsync(resp, 0, resp.Length, cts.Token);
-                    Console.WriteLine("Received response bytes from server.");
-                    return true;
+                    Console.WriteLine("Short response read (0) while reading header");
+                    return false;
                 }
-            }
-            catch
-            {
-                // Expected - no server to respond
+                headerRead += n;
             }
 
-            return true; // We at least connected and sent data
+            int len = BitConverter.ToInt32(header, 0);
+            if (len <= 0 || len > 4096)
+            {
+                Console.WriteLine($"Invalid response len {len}");
+                return false;
+            }
+
+            byte[] body = new byte[len];
+            int bodyRead = 0;
+            while (bodyRead < len)
+            {
+                int n = pipe.Read(body, bodyRead, len - bodyRead);
+                if (n == 0)
+                {
+                    Console.WriteLine($"Short response read ({bodyRead}/{len}) while reading body");
+                    return false;
+                }
+                bodyRead += n;
+            }
+
+            Console.WriteLine("Received full response from server.");
+            return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Named pipe error (expected without server): {ex.GetType().Name} - {ex.Message}");
+            Console.WriteLine($"Named pipe error: {ex.GetType().Name} - {ex.Message}");
             return false;
         }
     }

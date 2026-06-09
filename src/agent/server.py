@@ -11,13 +11,16 @@ Framing:
 Wire messages (JSON objects):
 - Client -> Server: {"type": "Ping", "nonce": "<hex>", "ts": <unix_ms>}
 - Server -> Client: {"type": "Pong", "nonce": "<echo>", "server_ts": <unix_ms>}
+- Client -> Server: {"type": "Chat", "text": "<user message>", "nonce": "<hex>", "ts": <unix_ms>}
+- Server -> Client: {"type": "ChatResponse", "text": "<agent reply>", "nonce": "<echo>", "server_ts": <unix_ms>}
 
 Run (after `pip install -e ".[agent]"` on Windows; requires pywin32):
     python -m agent.server
     # (or PYTHONPATH=src python -m src.agent.server before editable install)
 
-This makes the shell's "Test Transport" button report success and
-receive a real round-trip instead of the PR 2 "no listener (EXPECTED)".
+This is the core of the PR 3 agent: the server now handles real chat
+requests from the shell, routes them (local vs cloud stub), and
+returns responses over the named pipe.
 """
 
 from __future__ import annotations
@@ -26,6 +29,10 @@ import json
 import struct
 import time
 from typing import Any
+
+import pywintypes
+
+from agent.router import classify_route
 
 # pywin32 is required only at runtime (when actually serving).
 # We import lazily inside run_server() so that:
@@ -59,42 +66,58 @@ PIPE_NAME = r"\\.\pipe\my-agent-ipc"
 PIPE_BUFFER = 65536
 
 
-def _recv_exact(handle: int, n: int) -> bytes:
-    """Read exactly n bytes from the pipe handle (win32file)."""
-    _ensure_win32pipe()
-    chunks: list[bytes] = []
-    remaining = n
-    while remaining > 0:
-        data, _ = _WIN32FILE.ReadFile(handle, remaining)
-        if not data:
-            break
-        chunks.append(data)
-        remaining -= len(data)
-    return b"".join(chunks)
-
-
 def _send_frame(handle: int, payload: bytes) -> None:
-    """Write length-prefixed frame (LE u32 + bytes)."""
+    """Write length-prefixed frame (sync / non-overlapped pipe)."""
     _ensure_win32pipe()
     prefix = struct.pack("<I", len(payload))
-    _WIN32FILE.WriteFile(handle, prefix + payload)
+    data = prefix + payload
+    hr, nbytes = _WIN32FILE.WriteFile(handle, data)
+    if hr == 0:
+        try:
+            _WIN32FILE.FlushFileBuffers(handle)
+        except Exception:
+            pass
+    else:
+        print(f"[server] DEBUG: write hr={hr} nbytes={nbytes}")
+
+
+def _local_chat_response(text: str, route: str) -> str:
+    """First local backend path stub for PR4.
+    For 'local' route: simple helpful echo.
+    For 'cloud' route: indicate it would be sent to cloud.
+    This can later call Ollama / local LLM or tools.
+    The route is always returned so the shell can display it visibly.
+    """
+    if route == "local":
+        return f"[local] Thanks — I received your message: {text}"
+    else:
+        return f"[would-route-to-cloud] Thanks — I received your message: {text}"
 
 
 def handle_client(handle: int) -> None:
-    """Handle a single connected client: read one frame, process, reply."""
+    """Handle a single connected client: read one frame, process, reply.
+
+    Uses synchronous ReadFile/WriteFile. The pipe is created without
+    FILE_FLAG_OVERLAPPED and the .NET client uses blocking Connect + sync
+    Write/Read, so this is the simplest reliable match for the exact
+    length-prefixed JSON Ping/Pong contract from docs/ipc-spike.md.
+    """
     _ensure_win32pipe()
     try:
-        # Read length prefix (4 bytes LE)
-        len_bytes = _recv_exact(handle, 4)
-        if len(len_bytes) != 4:
+        # Sync read in message mode: one client Write of the full (len+body) frame
+        # is delivered as a single message. 4096 is ample for our small Ping JSON.
+        hr, data = _WIN32FILE.ReadFile(handle, 4096)
+        if hr != 0 or not data:
+            print(f"[server] DEBUG: read hr={hr} data_len={len(data) if data else 0}")
             return
-        (length,) = struct.unpack("<I", len_bytes)
-        if length <= 0 or length > 1_000_000:
+        print(f"[server] DEBUG: received message len={len(data)} hex={data[:min(20,len(data))].hex()}...")
+        if len(data) < 4:
             return
-
-        body = _recv_exact(handle, length)
-        if len(body) != length:
+        length = struct.unpack("<I", data[:4])[0]
+        print(f"[server] DEBUG: length={length}")
+        if length <= 0 or length > len(data) - 4:
             return
+        body = data[4:4+length]
 
         try:
             msg: dict[str, Any] = json.loads(body.decode("utf-8"))
@@ -113,13 +136,49 @@ def handle_client(handle: int) -> None:
             }
             _send_frame(handle, json.dumps(resp).encode("utf-8"))
             print(f"[server] Pong -> nonce={nonce[:8]}...")
+            # Wait for the client to read the Pong and close its end of the pipe.
+            # The ReadFile(1) will unblock (usually with error 109/232) when the
+            # .NET client disposes the NamedPipeClientStream. Those errors are
+            # swallowed by the outer handler. This ensures we don't close our
+            # end until the client has received the data.
+            try:
+                _WIN32FILE.ReadFile(handle, 1)
+            except Exception:
+                pass
+            time.sleep(0.05)
+
+        elif mtype == "Chat":
+            text = msg.get("text", "")
+            route = classify_route(text)
+
+            # Start of the "local backend path" for PR4.
+            # Currently a simple stub; can be extended to call a local model (e.g. Ollama)
+            # or other tools. The route decision is logged and returned for visibility.
+            response_text = _local_chat_response(text, route)
+
+            resp = {
+                "type": "ChatResponse",
+                "text": response_text,
+                "route": route,
+                "nonce": nonce,
+                "server_ts": int(time.time() * 1000),
+            }
+            _send_frame(handle, json.dumps(resp).encode("utf-8"))
+            print(f"[server] ChatResponse (route={route}) -> nonce={nonce[:8]}...")
+
+            # Same wait-for-client-close handshake.
+            try:
+                _WIN32FILE.ReadFile(handle, 1)
+            except Exception:
+                pass
+            time.sleep(0.05)
+
         else:
             _send_frame(
                 handle, json.dumps({"type": "Error", "error": f"unknown_type:{mtype}"}).encode("utf-8")
             )
     except _PYWINTYPES.error as e:  # type: ignore[attr-defined]
-        # Client disconnected or broken pipe - normal during dev
-        if e.args[0] not in (109, 232):  # ERROR_BROKEN_PIPE, ERROR_NO_DATA
+        if e.args[0] not in (109, 232):
             print(f"[server] pipe error: {e}")
     except Exception as ex:
         print(f"[server] handler error: {ex}")
@@ -128,22 +187,29 @@ def handle_client(handle: int) -> None:
 def run_server() -> None:
     _ensure_win32pipe()
     print(f"PR 3 agent IPC server listening on {PIPE_NAME}")
-    print("Send a Ping from the PR 2 shell 'Test Transport' button or TransportTest.")
+    print("Chat with the agent (real messages routed via PR3 core) or use Test Transport for ping.")
     print("Press Ctrl+C to stop.\n")
 
     while True:
-        pipe = _WIN32PIPE.CreateNamedPipe(
-            PIPE_NAME,
-            _WIN32PIPE.PIPE_ACCESS_DUPLEX,
-            _WIN32PIPE.PIPE_TYPE_MESSAGE
-            | _WIN32PIPE.PIPE_READMODE_MESSAGE
-            | _WIN32PIPE.PIPE_WAIT,
-            1,  # max instances
-            PIPE_BUFFER,
-            PIPE_BUFFER,
-            0,
-            None,
-        )
+        try:
+            pipe = _WIN32PIPE.CreateNamedPipe(
+                PIPE_NAME,
+                _WIN32PIPE.PIPE_ACCESS_DUPLEX,  # synchronous (no FILE_FLAG_OVERLAPPED)
+                _WIN32PIPE.PIPE_TYPE_MESSAGE
+                | _WIN32PIPE.PIPE_READMODE_MESSAGE
+                | _WIN32PIPE.PIPE_WAIT,
+                1,  # max instances
+                PIPE_BUFFER,
+                PIPE_BUFFER,
+                0,
+                None,
+            )
+        except _PYWINTYPES.error as e:
+            if getattr(e, 'args', [None])[0] == 231:  # ERROR_PIPE_BUSY
+                print("[server] Pipe busy, waiting 1s and retrying...")
+                time.sleep(1)
+                continue
+            raise
         try:
             _WIN32PIPE.ConnectNamedPipe(pipe, None)
             print("[server] client connected")
@@ -158,7 +224,10 @@ def run_server() -> None:
                 _WIN32PIPE.DisconnectNamedPipe(pipe)
             except Exception:
                 pass
-            _WIN32FILE.CloseHandle(pipe)
+            try:
+                _WIN32FILE.CloseHandle(pipe)
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
