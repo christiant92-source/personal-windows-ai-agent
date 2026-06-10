@@ -24,9 +24,9 @@
         <Grid Grid.Row="1" Padding="16">
             <!-- Chat pane -->
             <VerticalStackLayout x:Name="ChatPane" IsVisible="True">
-                <Label Text="Chat (stub)" FontSize="Large" Margin="0,0,0,8"/>
+                <Label Text="Chat (live via PR4 agent + local Ollama)" FontSize="Large" Margin="0,0,0,8"/>
                 <Entry x:Name="ChatInput" Placeholder="Type a message to the agent..." />
-                <Button Text="Send (stub)" Clicked="SendChat_Click" Margin="0,8,0,0"/>
+                <Button Text="Send" Clicked="SendChat_Click" Margin="0,8,0,0"/>
                 <Label Text="Conversation (local only, no backend yet):" Margin="0,8,0,4"/>
                 <Editor x:Name="ChatLog" IsReadOnly="True" HeightRequest="200" />
             </VerticalStackLayout>

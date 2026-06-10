@@ -160,8 +160,9 @@ public partial class MainPage : ContentPage
     }
 
     /// <summary>
-    /// Sends a chat message over the named pipe to the PR 3 Python agent.
-    /// Expects a ChatResponse with the agent's reply text.
+    /// Sends a chat message over the named pipe to the PR 4 agent core.
+    /// Uses local Ollama for 'local' route (real responses), cloud-stub otherwise.
+    /// Route decision is shown in the log.
     /// </summary>
     private async Task<(bool success, string? responseText, string? route, string? error)> TryNamedPipeChatAsync(string text)
     {

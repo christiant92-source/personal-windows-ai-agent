@@ -18,10 +18,13 @@ Run (after `pip install -e ".[agent]"` on Windows; requires pywin32):
     python -m agent.server
     # (or PYTHONPATH=src python -m src.agent.server before editable install)
 
-This is the core of the PR 3 / PR4 agent: the server handles real chat
-requests from the shell, routes them via classify_route (local vs cloud),
-and for local uses a real Ollama call (http://localhost:11434) with
-graceful fallback. Responses include the route for visibility in the UI.
+This is the core of the PR 4 agent (building on PR3 foundation): the server
+handles real chat requests from the shell over named pipe, routes them via
+classify_route (local vs cloud), and for 'local' uses a real Ollama call
+(http://localhost:11434 /api/generate, model=llama3 default) with graceful
+fallback. The route decision is logged visibly and returned in responses so
+the UI can display it (e.g. [local]). This is the small focused start of the
+local backend path; full tools/cloud/etc. come later.
 """
 
 from __future__ import annotations
@@ -218,8 +221,8 @@ def handle_client(handle: int) -> None:
 
 def run_server() -> None:
     _ensure_win32pipe()
-    print(f"PR 3 agent IPC server listening on {PIPE_NAME}")
-    print("Chat with the agent (real messages routed via PR3 core) or use Test Transport for ping.")
+    print(f"PR 4 agent core listening on {PIPE_NAME}")
+    print("Real chat messages are routed (local=Ollama, cloud=stub). Use Test Transport for ping check.")
     print("Press Ctrl+C to stop.\n")
 
     while True:
