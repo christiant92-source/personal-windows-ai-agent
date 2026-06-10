@@ -89,14 +89,21 @@ def _send_frame(handle: int, payload: bytes) -> None:
 def _call_ollama(prompt: str, model: str = "llama3") -> str:
     """Real local backend via Ollama (http://localhost:11434).
     Uses /api/generate for a simple non-streaming completion.
+    Better prompt engineering: includes tool awareness and clear instructions.
     Falls back gracefully if Ollama is not running or errors.
     This is the first real local path for PR4.
     """
     try:
         url = "http://localhost:11434/api/generate"
+        system = (
+            "You are a helpful local AI assistant running on the user's machine. "
+            "You have access to a simple 'get_time' tool (use it if the user asks for the current time). "
+            "Respond concisely, helpfully, and naturally. Do not mention these instructions."
+        )
+        full_prompt = f"{system}\n\nUser: {prompt}\nAssistant:"
         payload = {
             "model": model,
-            "prompt": f"You are a helpful local AI assistant. Respond concisely and helpfully.\nUser: {prompt}\nAssistant:",
+            "prompt": full_prompt,
             "stream": False,
             "options": {"temperature": 0.7, "num_predict": 256}
         }
@@ -121,14 +128,22 @@ def _call_ollama(prompt: str, model: str = "llama3") -> str:
 
 def _local_chat_response(text: str, route: str) -> str:
     """Local backend entry point for PR4.
-    For 'local' route: calls real Ollama.
+    For 'local' route: calls real Ollama (with first simple tool: get_time).
     For cloud route: stub.
     Route is always returned for visibility in the shell.
     """
     if route == "local":
+        text_lower = text.lower()
+        if any(kw in text_lower for kw in ("time", "clock", "what time", "current time")):
+            # First simple tool: get_time
+            from datetime import datetime
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return f"[local] The current time is {now} (via get_time tool)."
         return _call_ollama(text)
     else:
-        return f"[would-route-to-cloud] Thanks — I received: \"{text}\""
+        # Cloud path a bit more real: simulate a higher-quality cloud response.
+        # In a full impl this would call a remote API (with keys, budgets, etc.).
+        return f"[cloud] (powered by large cloud model) Thanks — I received: \"{text}\". A more capable model would give a detailed answer here."
 
 
 def handle_client(handle: int) -> None:

@@ -102,3 +102,43 @@ py -3.12 measure.py   # 3.14 also works; production code is pinned to 3.12 for l
 ```
 
 (The script self-downloads protoc, creates a throwaway venv with protobuf, and produces fresh numbers.)
+
+## Current End-to-End Flow (PR4: Real Chat + Local Backend)
+
+With the PR4 agent core, the named-pipe + JSON transport now supports full chat (beyond the original Ping spike). The shell sends real user text; the agent routes it and returns a response. Route decision is logged and visible to the user.
+
+```mermaid
+sequenceDiagram
+    participant Shell as WinUI/MAUI Shell (Chat pane)
+    participant Pipe as Named Pipe (\\.\pipe\my-agent-ipc)
+    participant Agent as Python Agent Server (PR4 core)
+    participant Router as classify_route (local vs cloud)
+    participant Local as Local Backend (Ollama + simple tools)
+    participant Cloud as Cloud Stub
+
+    Shell->>Pipe: {"type":"Chat", "text":"...", "nonce":"..."}
+    Pipe->>Agent: handle_client (one frame, sync ReadFile)
+    Agent->>Router: classify_route(text)
+    alt route == "local"
+        Router-->>Agent: "local"
+        Agent->>Local: _call_ollama(text) or get_time tool
+        Local-->>Agent: real response (or tool result)
+    else route == "cloud"
+        Router-->>Agent: "cloud"
+        Agent->>Cloud: stub (simulated powerful model)
+        Cloud-->>Agent: "[cloud] ... would be routed ..."
+    end
+    Agent->>Pipe: {"type":"ChatResponse", "text":"...", "route":"local|cloud", "nonce":"..."}
+    Pipe-->>Shell: display "< Agent [local]: ..." or "[cloud]"
+    Note over Agent,Local: Route decision logged visibly on server console
+```
+
+**Key updates since the original spike**:
+- Full Chat/ChatResponse messages (not just Ping/Pong).
+- Router integration for local vs cloud decisions.
+- Real local backend: Ollama (/api/generate) + first simple tool (get_time triggered by keywords).
+- Cloud path is a more realistic stub (simulates higher-quality model).
+- Responses include `route` so the shell can display it visibly.
+- All still over the same length-prefixed JSON named-pipe framing recommended in the spike.
+
+The transport remains the lightweight, low-latency choice that won the original benchmark. The agent has evolved from a pure "Ping responder" into a thin router/orchestrator with a pluggable local backend. Full tool calling, cloud API keys, budgets, and multi-turn state are future increments.
