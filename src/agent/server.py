@@ -88,7 +88,8 @@ def _send_frame(handle: int, payload: bytes) -> None:
 
 def _call_ollama(prompt: str, model: str = "llama3") -> str:
     """Real local backend via Ollama (http://localhost:11434).
-    Uses /api/generate for a simple non-streaming completion.
+    Uses /api/generate with streaming=True for live token-by-token output.
+    Chunks are printed live to the server console (visible during generation).
     Better prompt engineering: includes tool awareness and clear instructions.
     Falls back gracefully if Ollama is not running or errors.
     This is the first real local path for PR4.
@@ -104,7 +105,7 @@ def _call_ollama(prompt: str, model: str = "llama3") -> str:
         payload = {
             "model": model,
             "prompt": full_prompt,
-            "stream": False,
+            "stream": True,
             "options": {"temperature": 0.7, "num_predict": 256}
         }
         data = json.dumps(payload).encode("utf-8")
@@ -113,9 +114,20 @@ def _call_ollama(prompt: str, model: str = "llama3") -> str:
             data=data,
             headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            return result.get("response", f"[local-ollama] No response for: {prompt}").strip()
+        response_text = ""
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            for line in resp:
+                if not line.strip():
+                    continue
+                chunk = json.loads(line)
+                if "response" in chunk:
+                    part = chunk["response"]
+                    print(part, end="", flush=True)  # live streaming tokens to server console
+                    response_text += part
+                if chunk.get("done", False):
+                    print()  # final newline after full response
+                    break
+        return response_text.strip() or f"[local-ollama] No response for: {prompt}"
     except Exception as e:
         # Graceful fallback if Ollama not available (e.g. not running on :11434)
         err = str(e)
