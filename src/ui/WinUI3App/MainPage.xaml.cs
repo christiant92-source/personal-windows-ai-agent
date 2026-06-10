@@ -60,17 +60,17 @@ public partial class MainPage : ContentPage
         if (ok)
         {
             string noncePart = string.IsNullOrEmpty(info) ? "Nonce echoed." : $"Nonce: {info} echoed.";
-            TransportStatus.Text = $"✓ Connected! Server responded (PR 3 Python agent). {noncePart}";
+            TransportStatus.Text = $"✓ Connected! Server responded (PR 4 Python agent + local Ollama). {noncePart}";
         }
         else
         {
-            TransportStatus.Text = $"Connection refused / no listener (expected until Python agent server is running). Error: {info ?? "unknown"}. Named pipe transport stub is wired per ipc-spike.md.";
+            TransportStatus.Text = $"Connection refused / no listener (expected until Python agent server is running). Error: {info ?? "unknown"}. Named pipe transport wired to PR 4 agent (see ipc-spike.md).";
         }
     }
 
     /// <summary>
     /// Minimal named-pipe + JSON client stub matching the IPC spike recommendation.
-    /// Sends a Ping and expects a Pong from the PR 3 Python agent server.
+    /// Sends a Ping and expects a Pong from the PR 4 Python agent server (real local Ollama backend).
     /// </summary>
     private async Task<(bool success, string error)> TryNamedPipePingAsync()
     {

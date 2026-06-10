@@ -63,14 +63,14 @@
             <!-- Transport test result area -->
             <Border Grid.Row="1" VerticalOptions="End" BackgroundColor="#E0E0E0" Padding="12" Margin="0,12,0,0">
                 <VerticalStackLayout>
-                    <Label Text="Transport Status (PR 2 stub)" FontAttributes="Bold"/>
+                    <Label Text="Transport Status (PR 4 agent live)" FontAttributes="Bold"/>
                     <Label x:Name="TransportStatus" Text="Not connected. Click 'Test Transport' above." />
                     <Label Text="NamedPipeClientStream → \\.\pipe\my-agent-ipc (dummy ping)" FontSize="11" TextColor="Gray"/>
                 </VerticalStackLayout>
             </Border>
         </Grid>
 
-        <Label Grid.Row="2" Text="PR 2 skeleton - adapted to use installed .NET MAUI workload and WindowsAppRuntimes (no full WindowsAppSDK VS workload needed). No functional backend." 
+        <Label Grid.Row="2" Text="PR 2 skeleton (Chat + transport live via PR 4 agent). Adapted to use installed .NET MAUI workload and WindowsAppRuntimes (no full WindowsAppSDK VS workload needed)." 
                FontSize="11" TextColor="Gray" Padding="16,4" HorizontalTextAlignment="Center"/>
     </Grid>
 </ContentPage>

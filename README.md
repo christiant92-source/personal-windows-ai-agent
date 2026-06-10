@@ -26,11 +26,11 @@ Monorepo for the agent (Python) + UI (WinUI / Windows App SDK via .NET) system.
 
 **Local validation complete (PR2 + PR3)**: The "Test Transport" button in the shell (launched via desktop shortcut or `run-ui.cmd` / `run-ui.bat`) successfully performs a full round-trip over the named pipe to the Python agent server and shows:
 
-`✓ Connected! Server responded (PR 3 Python agent). Nonce: <real-nonce-from-server> echoed.`
+`✓ Connected! Server responded (PR 4 Python agent + local Ollama). Nonce: <real-nonce-from-server> echoed.`
 
 Server logs the connect + full frame + "Pong -> nonce=...".
 
-Real chat is also working: messages typed in the Chat pane are sent to the PR 3 agent, routed (currently always "local"), and the response appears in the conversation.
+Real chat is also working: messages typed in the Chat pane are sent to the PR 4 agent, routed via classify_route (local → real Ollama streaming + get_time tool, or cloud stub), the chosen route tag is included in the response and shown in the log (e.g. "< Agent [local]: ..."), and streaming tokens are printed live on the server console.
 
 The adaptation was performed after explicit scan of available software (per user request) when the documented WindowsAppSDK workload could not be installed. PR 2/3 work was done on feature branches and PRs created via gh.
 
@@ -125,17 +125,19 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-server.ps1
 Keep the server running. It listens on `\\.\pipe\my-agent-ipc` and responds to Pings with real Pong.
 
 Now run the shell in **another terminal** + click "Test Transport" — it should succeed with:
-"✓ Connected! Server responded (PR 3 Python agent). Nonce echoed."
+"✓ Connected! Server responded (PR 4 Python agent + local Ollama). Nonce echoed."
 
 See the server console for `[server] client connected` and `[server] Pong -> nonce=...` logs.
 
 ## Next
 
-PR 3 work is complete on the stacked branch (real chat over pipe, router integration, visible route decisions, desktop launchers, full transport validation).
+PR 4 initial work complete on the stacked branch `execute-plan/pr-4-local-models-cloud-router` (real local backend with Ollama streaming, first simple tool get_time, better prompt engineering, cloud path made a bit more real, visible route in responses + logs, sequence diagram in ipc-spike.md, desktop launchers for UI + server).
 
-Per the plan: Merge the validated Shell PR (#2) on GitHub first. Then create `execute-plan/pr-4-local-models-cloud-router` from main and start the initial small PR4 commit (improve local backend, make routing decisions affect responses more, log route visibly, basic orchestration).
+All listed PR4 items + streaming delivered in small focused commits. Real end-to-end: Test Transport shows live nonce; Chat pane produces routed responses from local (Ollama) or cloud stub; route tag displayed.
 
-Desktop launchers remain the easiest way to test going forward.
+Per the overall plan: Desktop launchers (run-ui.cmd + run-server.*) are the preferred way to test. After verification, push this branch and consider stacked PR creation / merge order (PR #2 shell first, then agent/PR3 foundation, then PR4 local/cloud router increments).
+
+Desktop launchers remain the easiest way to test going forward. Use `run-ui.cmd` (double-click) + `run-server.cmd` (or .bat / scripts/ variants) in separate windows.
 
 ## License
 
